@@ -1,0 +1,205 @@
+import { useEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, Image } from "react-native"
+import * as SQLite from 'expo-sqlite'
+import * as MediaLibrary from 'expo-media-library';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+
+const db = SQLite.openDatabaseSync("rn_sqlite");
+
+const createTables = async (database) => {
+    try {
+        await database.execAsync(`
+            CREATE TABLE IF NOT EXISTS servicesPhotos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                foto TEXT NOT NULL,
+                dataInclusao DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        `)
+        console.log("Tabela criada com sucesso!")
+    } catch (error) {
+        console.error("Erro ao criar tabela:", error)
+    }
+}
+
+export const tirarFoto = async (cameraRef, setLastPhoto, loadPhotosCallback) => {
+    if (cameraRef) {
+        try {
+            const photo = await cameraRef.takePictureAsync({
+                base64: true,
+                quality: 0.8,
+            })
+            console.log("Foto tirada:", photo)
+            await salvarFoto(photo, setLastPhoto, loadPhotosCallback)
+        } catch (error) {
+            console.error("Erro ao tirar foto:", error)
+            Alert.alert("Erro", "Não foi possível tirar a foto")
+        }
+    }
+}
+
+export const salvarFoto = async (photo, setLastPhoto, loadPhotosCallback) => {
+    try {
+        const { status } = await MediaLibrary.requestPermissionsAsync()
+        if (status !== "granted") {
+            Alert.alert("Erro", "Permissão para salvar fotos negada.")
+            return
+        }
+
+        const asset = await MediaLibrary.createAssetAsync(photo.uri)
+
+        if (db) {
+            const dataAtual = new Date().toISOString()
+            await db.runAsync("INSERT INTO servicesPhotos (foto, dataInclusao) VALUES (?, ?)", [photo.uri, dataAtual])
+            console.log("Foto salva no banco de dados!")
+
+            // Chamar callback para recarregar fotos se fornecido
+            if (loadPhotosCallback) {
+                await loadPhotosCallback()
+            }
+
+            Alert.alert("Sucesso", "Foto salva com sucesso!")
+
+            if (setLastPhoto) {
+                setLastPhoto(photo)
+            }
+        }
+    } catch (error) {
+        console.error("Erro ao salvar foto:", error)
+        Alert.alert("Erro", "Não foi possível salvar a foto")
+    }
+}
+
+export const loadPhotos = async () => {
+    try {
+        const result = await db.getAllAsync("SELECT * FROM servicesPhotos ORDER BY dataInclusao DESC")
+        return result
+    } catch (error) {
+        console.error("Erro ao carregar fotos:", error)
+        return []
+    }
+}
+
+export const deletarFoto = async (id) => {
+    try {
+        if (db) {
+            await db.runAsync("DELETE FROM servicesPhotos WHERE id = ?", [id])
+            Alert.alert("Sucesso", "Foto removida com sucesso!")
+            return true
+        }
+    } catch (error) {
+        console.error("Erro ao deletar foto:", error)
+        Alert.alert("Erro", "Não foi possível remover a foto")
+        return false
+    }
+}
+
+const formatarData = (dataISO) => {
+    const data = new Date(dataISO)
+    return data.toLocaleDateString("pt-BR") + " " + data.toLocaleTimeString("pt-BR")
+}
+
+export default function GaleriaDB() {
+    const [photos, setPhotos] = useState([]);
+
+    useEffect(() => {
+        initializeGallery()
+        createTables();
+        // dropTable();
+    }, [])
+
+    const initializeGallery = async () => {
+        await createTables()
+        await loadPhotosData()
+    }
+
+    const loadPhotosData = async () => {
+        const photosData = await loadPhotos()
+        setPhotos(photosData)
+    }
+
+    const handleDeletePhoto = async (id) => {
+        const success = await deletarFoto(id)
+        if (success) {
+            await loadPhotosData()
+        }
+    }
+
+    const dropTable = async () => {
+        await db.execAsync(`DROP TABLE servicesPhotos`)
+    }
+
+    return (
+        <View style={styles.container}>
+            <Text style={styles.galleryTitle}>Galeria ({photos.length} fotos)</Text>
+            <FlatList
+                data={photos}
+                keyExtractor={(item) => item.id.toString()}
+                numColumns={2}
+                renderItem={({ item }) => (
+                    <View style={styles.photoItem}>
+                        <Image source={{ uri: item.foto }} style={styles.thumbnail} />
+                        <Text style={styles.photoDate}>{formatarData(item.dataInclusao)}</Text>
+                        <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => {
+                                Alert.alert("Confirmar", "Deseja realmente excluir esta foto?", [
+                                    { text: "Cancelar", style: "cancel" },
+                                    { text: "Excluir", onPress: () => handleDeletePhoto(item.id) },
+                                ])
+                            }}
+                        >
+                            <Ionicons name="trash" size={16} color="red" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+                ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma foto encontrada</Text>}
+            />
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: "#fff",
+        padding: 10,
+    },
+    galleryTitle: {
+        fontSize: 18,
+        fontWeight: "bold",
+        marginBottom: 10,
+        textAlign: "center",
+    },
+    photoItem: {
+        flex: 1,
+        margin: 5,
+        backgroundColor: "#f5f5f5",
+        borderRadius: 8,
+        padding: 5,
+        position: "relative",
+    },
+    thumbnail: {
+        width: "100%",
+        height: 120,
+        borderRadius: 5,
+    },
+    photoDate: {
+        fontSize: 10,
+        color: "#666",
+        textAlign: "center",
+        marginTop: 5,
+    },
+    deleteButton: {
+        position: "absolute",
+        top: 8,
+        right: 8,
+        backgroundColor: "rgba(255,255,255,0.8)",
+        borderRadius: 12,
+        padding: 4,
+    },
+    emptyText: {
+        textAlign: "center",
+        color: "#666",
+        marginTop: 20,
+    },
+});
