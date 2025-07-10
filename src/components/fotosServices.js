@@ -1,5 +1,3 @@
-"use client"
-
 import { Alert } from "react-native"
 import * as SQLite from "expo-sqlite"
 import * as MediaLibrary from "expo-media-library"
@@ -55,7 +53,7 @@ export const salvarFoto = async (photo, setLastPhoto, loadPhotosCallback) => {
             return
         }
 
-        const asset = await MediaLibrary.createAssetAsync(photo.uri)
+        await MediaLibrary.createAssetAsync(photo.uri)
 
         if (db) {
             const dataAtual = new Date().toISOString()
@@ -86,19 +84,6 @@ export const loadPhotos = async () => {
         console.error("Erro ao carregar fotos:", error)
         return []
     }
-}
-
-export const groupByMonth = (photos) => {
-    const grouped = {}
-    photos.forEach((photo) => {
-        const date = new Date(photo.dataInclusao)
-        const month = date.toLocaleString("default", { month: "long" })
-        if (!grouped[month]) {
-            grouped[month] = []
-        }
-        grouped[month].push(photo)
-    })
-    return grouped
 }
 
 export const deletarFoto = async (id) => {

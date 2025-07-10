@@ -1,5 +1,3 @@
-"use client"
-
 import { StyleSheet, Text, View, TouchableOpacity, Button, Image } from "react-native"
 import { CameraView, useCameraPermissions } from "expo-camera"
 import { Ionicons } from "@expo/vector-icons"
@@ -13,7 +11,6 @@ export default function CameraScreen({ navigation }) {
     const [lastPhoto, setLastPhoto] = useState(null)
 
     useEffect(() => {
-        // Inicializar tabelas quando o componente montar
         createTables()
     }, [])
 
@@ -35,7 +32,6 @@ export default function CameraScreen({ navigation }) {
     }
 
     const handleTirarFoto = async () => {
-        // Função para recarregar fotos (opcional)
         const loadPhotosCallback = async () => {
             const photos = await loadPhotos()
             console.log(`${photos.length} fotos carregadas`)

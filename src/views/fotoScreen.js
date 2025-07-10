@@ -1,5 +1,3 @@
-"use client"
-
 import { StyleSheet, Text, View, TouchableOpacity, Image, ActivityIndicator, Alert } from "react-native"
 import { useEffect, useState } from "react"
 import { Ionicons } from "@expo/vector-icons"
@@ -47,17 +45,6 @@ export default function FotoScreen({ navigation, route }) {
             <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color="#0000ff" />
                 <Text>Carregando foto...</Text>
-            </View>
-        )
-    }
-
-    if (!foto) {
-        return (
-            <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>Foto não encontrada</Text>
-                <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-                    <Text style={styles.backButtonText}>Voltar</Text>
-                </TouchableOpacity>
             </View>
         )
     }
